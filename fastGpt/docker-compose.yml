@@ -1,0 +1,74 @@
+# 非 host 版本, 不使用本机代理
+version: '3.3'
+
+services:
+  pg:
+    # 使用阿里云的 pgvector 镜像
+    image: registry.cn-hangzhou.aliyuncs.com/fastgpt/pgvector:v0.4.2
+    container_name: pg
+    restart: always
+    # 生产环境建议不要暴露端口
+    ports:
+      - "5432:5432"
+    networks:
+      - fastgpt
+    # 环境变量配置，首次运行生效，修改后需删除持久化数据再重启
+    environment:
+      - POSTGRES_USER=username
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=fastgpt
+    # 卷挂载，包括初始化脚本和数据持久化
+    volumes:
+      - ./pg/init.sql:/docker-entrypoint-initdb.d/init.sh
+      - ./pg/data:/var/lib/postgresql/data
+
+  mongo:
+    # 使用阿里云的 mongo 镜像
+    image: registry.cn-hangzhou.aliyuncs.com/fastgpt/mongo:5.0.18
+    container_name: mongo
+    restart: always
+    # 生产环境建议不要暴露端口
+    ports:
+      - "27017:27017"
+    networks:
+      - fastgpt
+    # 环境变量配置，首次运行生效，修改后需删除持久化数据再重启
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=username
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    # 卷挂载，包括数据和日志
+    volumes:
+      - ./mongo/data:/data/db
+      - ./mongo/logs:/var/log/mongodb
+
+  fastgpt:
+    container_name: fastgpt
+    # 使用阿里云的 fastgpt 镜像
+    image: registry.cn-hangzhou.aliyuncs.com/david_wang/fastgpt:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - fastgpt
+    # 确保在 mongo 和 pg 服务启动后再启动 fastgpt
+    depends_on:
+      - mongo
+      - pg
+    restart: always
+    # 可配置的环境变量
+    environment:
+      - DEFAULT_ROOT_PSW=123456
+      - OPENAI_BASE_URL=https://api.openai.com/v1
+      - CHAT_API_KEY=sk-*****
+      - DB_MAX_LINK=5
+      - TOKEN_KEY=wenwenai
+      - ROOT_KEY=wenwenai
+      - FILE_TOKEN_KEY=filetoken
+      - MONGODB_URI=mongodb://username:password@mongo:27017/fastgpt?authSource=admin
+      - PG_URL=postgresql://username:password@pg:5432/fastgpt
+    # 配置文件的卷挂载
+    volumes:
+      - ./config.json:/app/data/config.json
+
+# 定义使用的网络
+networks:
+  fastgpt:
