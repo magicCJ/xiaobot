@@ -6,7 +6,6 @@ services:
     security_opt:
       - seccomp:unconfined
     environment:
-      // 填写你的 OpenAI Key
       OPEN_AI_API_KEY: 'sk-XXXX'
       MODEL: 'gpt-3.5-turbo'
       CHANNEL_TYPE: 'wx'
